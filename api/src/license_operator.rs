@@ -101,9 +101,13 @@ impl LicenseOperator {
         let mut serialized_license_key = Vec::<u8>::with_capacity(license_key_hash_size);
 
         // Hash seed
-        Shake256::digest_xof(seed, &mut serialized_license_key);
+        use sha3::digest::{Update, XofReader};
+        let mut hasher = Shake256::default();
+        hasher.update(seed);
+        let mut reader = hasher.finalize_xof();      
+        reader.read(&mut serialized_license_key);
         license_key.seed.extend(serialized_license_key.clone());
-
+        
         // Generate payload
         for m in self.magic.get_magic().iter() {
             let payload = self.serializer.hash(license_key.seed.borrow(), m);
@@ -151,7 +155,7 @@ impl LicenseOperator {
                     valid.payload.borrow(),
                     self.serializer.borrow(),
                     valid.seed.borrow(),
-                    self.magic.borrow(),
+                    &self.magic,
                 ) {
                     return LicenseKeyStatus::Invalid;
                 }
